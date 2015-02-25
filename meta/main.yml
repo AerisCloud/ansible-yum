@@ -1,0 +1,14 @@
+galaxy_info:
+  author: Emilien Kenler <ekenler@wizcorp.jp>
+  description: Replace the default yum module.
+  company: Wizcorp K.K.
+  license: MIT
+  min_ansible_version: 1.8.1
+  platforms:
+    - name: EL
+      versions:
+        - all
+  categories:
+    - system
+    - packaging
+dependencies: []
