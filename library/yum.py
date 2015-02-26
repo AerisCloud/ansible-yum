@@ -157,11 +157,12 @@ def main():
         for pkg in packages:
             if pkg.endswith('.rpm'):
                 _, real_name, _ = module.run_command(
-                    'rpm -q '
-                    '--queryformat "%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n" '
-                    '-p {0}'.format(pkg),
-                    check_rc=True
-                )
+                    [
+                        'rpm', '-q',
+                        '--queryformat',
+                        '"%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n"',
+                        '-p', pkg
+                    ], check_rc=True)
                 if not is_installed(real_name):
                     to_install.append(pkg)
             else:
@@ -198,5 +199,6 @@ def main():
         changed = True
 
     module.exit_json(msg='OK', changed=changed)
+
 
 main()
