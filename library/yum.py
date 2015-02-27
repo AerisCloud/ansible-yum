@@ -160,7 +160,7 @@ def main():
                     [
                         'rpm', '-q',
                         '--queryformat',
-                        '"%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n"',
+                        '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}',
                         '-p', pkg
                     ], check_rc=True)
                 if not is_installed(real_name):
