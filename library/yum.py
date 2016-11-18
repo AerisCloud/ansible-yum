@@ -88,20 +88,21 @@ import os
 
 from ansible.module_utils.basic import *
 
-module = AnsibleModule(
-    argument_spec=dict(
-        package=dict(required=True, aliases=['pkg', 'name'], type='list'),
-        # removed==absent, installed==present, these are accepted as aliases
-        state=dict(default='installed',
-                   choices=['absent', 'present', 'installed', 'removed',
-                            'latest']),
-        enablerepo=dict(),
-        disablerepo=dict(),
-        conf_file=dict(default=None),
-        disable_gpg_check=dict(required=False, default="no", type='bool'),
-        update_cache=dict(required=False, default="no", type='bool'),
-    )
-)
+module = AnsibleModule(argument_spec=dict(
+    package=dict(required=True,
+                 aliases=['pkg', 'name'],
+                 type='list'),
+    # removed==absent, installed==present, these are accepted as aliases
+    state=dict(default='installed',
+               choices=['absent', 'present', 'installed', 'removed',
+                        'latest']),
+    enablerepo=dict(),
+    disablerepo=dict(),
+    conf_file=dict(default=None),
+    disable_gpg_check=dict(
+        required=False, default="no", type='bool'),
+    update_cache=dict(required=False, default="no",
+                      type='bool'), ))
 
 
 def is_installed(name):
@@ -111,15 +112,15 @@ def is_installed(name):
 
 def get_version(name):
     if is_installed(name):
-        _, out, _ = module.run_command(' '.join(['rpmquery',
-                                        '--queryformat="%{VERSION}-%{RELEASE}"',
-                                        name]), check_rc=True)
+        _, out, _ = module.run_command(' '.join(
+            ['rpmquery', '--queryformat="%{VERSION}-%{RELEASE}"', name]),
+                                       check_rc=True)
         return out
     else:
-        _, out, _ = module.run_command(' '.join(['rpmquery',
-                                        '--whatprovides',
-                                        '--queryformat="%{VERSION}-%{RELEASE}"',
-                                        name]), check_rc=True)
+        _, out, _ = module.run_command(
+            ' '.join(['rpmquery', '--whatprovides',
+                      '--queryformat="%{VERSION}-%{RELEASE}"', name]),
+            check_rc=True)
         return out
 
 
@@ -131,7 +132,7 @@ def main():
     elif state == 'installed':
         state = 'present'
 
-    cmd = "yum -q -y"
+    cmd = "yum -y -d 2"
     changed = False
 
     if module.params['enablerepo'] and state != 'absent':
@@ -158,11 +159,10 @@ def main():
             if pkg.endswith('.rpm'):
                 _, real_name, _ = module.run_command(
                     [
-                        'rpm', '-q',
-                        '--queryformat',
-                        '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}',
-                        '-p', pkg
-                    ], check_rc=True)
+                        'rpm', '-q', '--queryformat',
+                        '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}', '-p', pkg
+                    ],
+                    check_rc=True)
                 if not is_installed(real_name):
                     to_install.append(pkg)
             else:
@@ -180,25 +180,40 @@ def main():
             if is_installed(pkg):
                 to_remove.append(pkg)
 
+    rc = None
     if to_install:
-        module.run_command(cmd + ' install ' + ' '.join(to_install),
-                           check_rc=True)
+        rc, out, err = module.run_command(
+            cmd + ' install ' + ' '.join(to_install),
+            check_rc=True)
         changed = True
+
+        # verify that packages we specified actually got installed
+        missing_pkgs = [x for x in to_install if not is_installed(x)]
+        if missing_pkgs:
+            module.fail_json(
+                msg='The following packages were not installed: {}'.format(
+                    ', '.join(missing_pkgs)))
 
     if to_update:
         old = get_version(' '.join(to_update))
-        module.run_command(cmd + ' update ' + ' '.join(to_update),
-                           check_rc=True)
+        rc, out, err = module.run_command(
+            cmd + ' update ' + ' '.join(to_update),
+            check_rc=True)
         new = get_version(' '.join(to_update))
         if old != new:
             changed = True
 
     if to_remove:
-        module.run_command(cmd + ' remove ' + ' '.join(to_remove),
-                           check_rc=True)
+        rc, out, err = module.run_command(
+            cmd + ' remove ' + ' '.join(to_remove),
+            check_rc=True)
         changed = True
 
-    module.exit_json(msg='OK', changed=changed)
+    result = {"changed": changed}
+    if rc is not None:
+        result.update({"rc": rc, "results": out, "msg": err})
+
+    module.exit_json(**result)
 
 
 main()
