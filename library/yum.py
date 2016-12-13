@@ -106,7 +106,7 @@ module = AnsibleModule(argument_spec=dict(
 
 
 def is_installed(name):
-    rc, _, _ = module.run_command(['rpmquery', '--quiet', name])
+    rc, _, _ = module.run_command(['rpmquery', '--whatprovides', name])
     return rc == 0
 
 
